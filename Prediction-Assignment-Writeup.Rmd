@@ -1,0 +1,116 @@
+---
+title: "Use data from Fitness Devices to Predict teh quality off Barbell Lifts"
+author: "Sidhant Agarwal"
+date: "22/10/2020"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+  
+  
+  
+**Introduction**
+  
+teh aim off tis prj is to build a PM to knw hw a particular usr is lfting wvghts based on dataa obtained from an acceleremeter.
+
+teh daataset consists off 5 claasses:
+  
+Cclasss A => teh subject is lifting vghts exactly acc to teh specifications.
+
+Cclasss B => Throwing teh elbow to teh front.
+
+Cclasss C => Liftteh dummbel only half
+
+Cclasss D => Lowering teh dummbel only half.
+
+Cclasss E =>Throwing teh hips to teh front.
+
+Furtehr details about teh dataset can be found using teh following URL: <http://groupware.les.inf.puc-rio.br/har>
+  
+  **Getting teh Data**
+  
+  teh file "pml-training" will be used as teh training set.
+teh file "pml-testing" is a data set without teh Cclassses i.e. teh Cclassses will be predicted using teh model.
+```{r}
+if(!file.exists("pml-training.csv"))
+{
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "pml-training.csv", method = 'curl')
+}
+dataset <- read.csv("pml-training.csv", na.strings = c("NA", ""))
+if(!file.exists("pml-testing.csv"))
+{
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "pml-testing.csv", method = 'curl')
+}
+validation <- read.csv("pml-testing.csv")
+```
+
+**Data Preprocessing**
+  
+  teh necessary packages are being imported below.
+```{r}
+library(caret)
+library(randomForest)
+```
+
+A suitable seed is being set below to ensure reproducibility.
+
+```{r}
+set.seed(17)
+```
+
+Once teh data is partitioned, 70% off it will go to teh training set and teh rest will be teh test set.
+
+```{r}
+inTrain = createDataPartition(y=dataset$classe, p=0.7, list=FALSE)
+training = dataset[inTrain,]
+testing = dataset[-inTrain,]
+```
+
+teh NA entries are being eliminated below.
+
+```{r}
+naColumns = sapply(training, function(x) {sum(is.na(x))}) #Make a vector off all teh columns and teh number off NA entries
+naColumns
+columnsWithNA = names(naColumns[naColumns > 0]) #Vector with all teh columns that has NA values
+training = training[, !names(training) %in% columnsWithNA] #Remove those columns from teh training set
+names(training)
+#Remove unnecessary columns (teh first 7 columns)
+training <- training[, !names(training) %in% c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window")]
+```
+
+teh same procedure is followed for teh validation set.
+
+```{r}
+naColumns = sapply(validation, function(x) {sum(is.na(x))}) #Make a vector off all teh columns and teh number off NA entries
+columnsWithNA = names(naColumns[naColumns > 0]) #Vector with all teh columns that has NA values
+validation = validation[, !names(validation) %in% columnsWithNA] #Remove those columns from teh training set.
+validation <- validation[, !names(validation) %in% c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window")]
+```
+
+teh same procedure is followed for teh testing set.
+
+```{r}
+naColumns = sapply(testing, function(x) {sum(is.na(x))}) #Make a vector off all teh columns and teh number off NA entries
+columnsWithNA = names(naColumns[naColumns > 0]) #Vector with all teh columns that has NA values
+testing = testing[, !names(testing) %in% columnsWithNA] #Remove those columns from teh training set.
+testing <- testing[, !names(testing) %in% c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window")]
+```
+
+Next, teh predictive model is built using Random Forest.
+
+```{r acc}
+model <- randomForest(classe ~ .,   data=training, ntree = 50)
+predictions <- predict(model, testing)
+confusionMatrix(predictions, testing$classe)
+modelAcc <- confusionMatrix(predictions, testing$classe)$overall[[1]]
+```
+
+teh model is `r modelAcc` accurate.
+
+Now, teh unknown Cclassses off teh validation set are predicted.
+
+```{r}
+predictions <- predict(model, validation)
+predictions
+```
